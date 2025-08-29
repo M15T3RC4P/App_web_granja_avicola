@@ -1,0 +1,542 @@
+<!--
+* Granja Avícola App
+* Este archivo contiene todo el código HTML, CSS y JavaScript para la aplicación.
+* La aplicación se conecta a Firestore para almacenar y gestionar los datos de la granja,
+* incluyendo ventas, gastos, lotes y un resumen financiero.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión Granja Avícola</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+            color: #1a202c;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 2rem;
+        }
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 1.5rem;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+        }
+        .btn-primary {
+            background-color: #4a5568;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2d3748;
+        }
+        .btn-secondary {
+            background-color: #e2e8f0;
+            color: #4a5568;
+        }
+        .btn-secondary:hover {
+            background-color: #cbd5e0;
+        }
+        .input-field {
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            padding: 0.5rem 1rem;
+            width: 100%;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container mx-auto p-4">
+    <div class="flex flex-col md:flex-row items-center justify-between mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">Gestión de Granja Avícola</h1>
+        <div class="mt-4 md:mt-0">
+            <button id="add-expense-btn" class="btn btn-primary mr-2">
+                <i class="fas fa-plus mr-1"></i> Añadir Gasto
+            </button>
+            <button id="add-sale-btn" class="btn btn-primary">
+                <i class="fas fa-plus mr-1"></i> Añadir Venta
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- Tarjeta de Lotes Activos -->
+        <div class="card p-6 flex flex-col items-center justify-center text-center">
+            <p class="text-gray-500 mb-2">Usuario ID:</p>
+            <p id="user-id" class="text-sm font-mono bg-gray-100 p-2 rounded-lg break-all"></p>
+        </div>
+
+        <!-- Tarjeta de Resumen Financiero -->
+        <div class="card p-6 text-center">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Resumen del Lote</h2>
+            <div id="lot-summary" class="grid grid-cols-2 gap-4 text-lg">
+                <div class="text-left font-medium text-gray-600">Total Gastos:</div>
+                <div id="total-expenses" class="text-right text-red-500 font-bold">$0</div>
+                <div class="text-left font-medium text-gray-600">Total Ventas:</div>
+                <div id="total-sales" class="text-right text-green-500 font-bold">$0</div>
+                <div class="text-left font-medium text-gray-600">Ganancia Estimada:</div>
+                <div id="estimated-profit" class="text-right font-bold text-gray-800">$0</div>
+            </div>
+            <select id="lot-selector" class="mt-4 input-field text-sm">
+                <option value="">Selecciona un lote...</option>
+            </select>
+        </div>
+
+        <!-- Tarjeta de Información del Lote -->
+        <div class="card p-6 flex flex-col">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Información del Lote</h2>
+            <div id="lot-info" class="flex-grow">
+                <p>Selecciona un lote para ver los detalles.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secciones de Gastos y Ventas -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Tabla de Gastos -->
+        <div class="card">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Gastos</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detalle</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-table-body" class="bg-white divide-y divide-gray-200">
+                        <!-- Los gastos se insertarán aquí dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tabla de Ventas -->
+        <div class="card">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Ventas</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-table-body" class="bg-white divide-y divide-gray-200">
+                        <!-- Las ventas se insertarán aquí dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Añadir Gasto -->
+<div id="expense-modal" class="modal">
+    <div class="modal-content">
+        <h3 class="text-lg font-bold mb-4">Añadir Nuevo Gasto</h3>
+        <form id="expense-form" class="space-y-4">
+            <select id="expense-lot-selector" class="input-field" required>
+                <option value="">Selecciona un lote...</option>
+            </select>
+            <input type="text" id="expense-detail" placeholder="Detalle del gasto" class="input-field" required>
+            <input type="number" id="expense-amount" placeholder="Monto" class="input-field" required min="1">
+            <button type="submit" class="btn btn-primary w-full">Guardar Gasto</button>
+            <button type="button" class="btn btn-secondary w-full" onclick="document.getElementById('expense-modal').style.display='none'">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal para Añadir Venta -->
+<div id="sale-modal" class="modal">
+    <div class="modal-content">
+        <h3 class="text-lg font-bold mb-4">Añadir Nueva Venta</h3>
+        <form id="sale-form" class="space-y-4">
+            <select id="sale-lot-selector" class="input-field" required>
+                <option value="">Selecciona un lote...</option>
+            </select>
+            <input type="text" id="sale-client" placeholder="Nombre del cliente" class="input-field" required>
+            <input type="number" id="sale-amount" placeholder="Monto de la venta" class="input-field" required min="1">
+            <button type="submit" class="btn btn-primary w-full">Guardar Venta</button>
+            <button type="button" class="btn btn-secondary w-full" onclick="document.getElementById('sale-modal').style.display='none'">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal para Mensajes -->
+<div id="message-modal" class="modal">
+    <div class="modal-content text-center">
+        <h3 id="message-title" class="text-xl font-bold mb-2"></h3>
+        <p id="message-text" class="mb-4"></p>
+        <button onclick="document.getElementById('message-modal').style.display='none'" class="btn btn-primary">Aceptar</button>
+    </div>
+</div>
+
+<script type="module">
+    // Importaciones de Firebase SDK (versión 11.6.1)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot, addDoc, getDocs, doc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    
+    // Configuración y variables globales para la app
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    let userId = null;
+
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    setLogLevel('Debug'); // Habilitar logs para depuración
+
+    // Elementos del DOM
+    const lotSelector = document.getElementById('lot-selector');
+    const expenseLotSelector = document.getElementById('expense-lot-selector');
+    const saleLotSelector = document.getElementById('sale-lot-selector');
+    const totalExpensesEl = document.getElementById('total-expenses');
+    const totalSalesEl = document.getElementById('total-sales');
+    const estimatedProfitEl = document.getElementById('estimated-profit');
+    const expensesTableBody = document.getElementById('expenses-table-body');
+    const salesTableBody = document.getElementById('sales-table-body');
+    const lotInfoEl = document.getElementById('lot-info');
+
+    // Estado local de la aplicación
+    let allLots = [];
+    let allExpenses = [];
+    let allSales = [];
+    let selectedLotId = null;
+
+    // Función para mostrar mensajes modales
+    function showMessage(title, text) {
+        document.getElementById('message-title').textContent = title;
+        document.getElementById('message-text').textContent = text;
+        document.getElementById('message-modal').style.display = 'flex';
+    }
+
+    // Funciones de utilidad para formatear valores monetarios y de fecha
+    const formatCurrency = (value) => {
+        return `$${new Intl.NumberFormat('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(value).replace('COP', '').trim()}`;
+    };
+
+    const formatDate = (timestamp) => {
+        if (!timestamp) return 'N/A';
+        const date = timestamp.toDate();
+        return date.toLocaleDateString('es-CO', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    };
+
+    // Funciones para renderizar la UI
+    function renderLotInfo(lot) {
+        if (!lot) {
+            lotInfoEl.innerHTML = '<p>Selecciona un lote para ver los detalles.</p>';
+            return;
+        }
+        const lotStatus = lot.Estado === 'Activo' ? `<span class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded-full">Activo</span>` : `<span class="bg-red-100 text-red-800 text-xs font-semibold px-2 py-0.5 rounded-full">Inactivo</span>`;
+        lotInfoEl.innerHTML = `
+            <p class="mb-2"><span class="font-semibold">ID Lote:</span> ${lot.ID_Lote}</p>
+            <p class="mb-2"><span class="font-semibold">Raza:</span> ${lot.Raza}</p>
+            <p class="mb-2"><span class="font-semibold">Cantidad Inicial:</span> ${lot.Cantidad_inicial} pollos</p>
+            <p class="mb-2"><span class="font-semibold">Días de Engorde:</span> ${lot.Dias_engorde}</p>
+            <p class="mb-2"><span class="font-semibold">Estado:</span> ${lotStatus}</p>
+            <p class="mb-2"><span class="font-semibold">Fecha de Inicio:</span> ${lot.Fecha_inicio}</p>
+        `;
+    }
+
+    function renderSummary() {
+        if (!selectedLotId) {
+            totalExpensesEl.textContent = formatCurrency(0);
+            totalSalesEl.textContent = formatCurrency(0);
+            estimatedProfitEl.textContent = formatCurrency(0);
+            return;
+        }
+
+        const filteredExpenses = allExpenses.filter(e => e.ID_Lote === selectedLotId);
+        const filteredSales = allSales.filter(s => s.ID_Lote === selectedLotId);
+
+        const totalExpenses = filteredExpenses.reduce((sum, exp) => sum + exp.Total, 0);
+        const totalSales = filteredSales.reduce((sum, sale) => sum + sale.Total, 0);
+        const estimatedProfit = totalSales - totalExpenses;
+
+        totalExpensesEl.textContent = formatCurrency(totalExpenses);
+        totalSalesEl.textContent = formatCurrency(totalSales);
+        estimatedProfitEl.textContent = formatCurrency(estimatedProfit);
+
+        if (estimatedProfit < 0) {
+            estimatedProfitEl.classList.remove('text-green-500', 'text-gray-800');
+            estimatedProfitEl.classList.add('text-red-500');
+        } else {
+            estimatedProfitEl.classList.remove('text-red-500', 'text-gray-800');
+            estimatedProfitEl.classList.add('text-green-500');
+        }
+    }
+
+    function renderTables() {
+        const filteredExpenses = allExpenses.filter(e => e.ID_Lote === selectedLotId);
+        const filteredSales = allSales.filter(s => s.ID_Lote === selectedLotId);
+
+        // Renderizar tabla de gastos
+        expensesTableBody.innerHTML = '';
+        if (filteredExpenses.length > 0) {
+            filteredExpenses.forEach(expense => {
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${formatDate(expense.Fecha)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${expense.Detalle}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">${formatCurrency(expense.Total)}</td>
+                    </tr>
+                `;
+                expensesTableBody.innerHTML += row;
+            });
+        } else {
+            expensesTableBody.innerHTML = `<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">No hay gastos registrados para este lote.</td></tr>`;
+        }
+
+        // Renderizar tabla de ventas
+        salesTableBody.innerHTML = '';
+        if (filteredSales.length > 0) {
+            filteredSales.forEach(sale => {
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${formatDate(sale.Fecha)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${sale.Nombre_cliente}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right">${formatCurrency(sale.Total)}</td>
+                    </tr>
+                `;
+                salesTableBody.innerHTML += row;
+            });
+        } else {
+            salesTableBody.innerHTML = `<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">No hay ventas registradas para este lote.</td></tr>`;
+        }
+    }
+
+    // Funciones para manejar eventos y la lógica de la app
+    async function addLot() {
+        const newLotId = `GA-LT-${String(allLots.length + 1).padStart(3, '0')}`;
+        const newLot = {
+            ID_Lote: newLotId,
+            Fecha_inicio: new Date().toLocaleDateString('es-CO'),
+            Cantidad_inicial: 30, // Valor por defecto
+            Raza: "Ross", // Valor por defecto
+            Estado: "Activo",
+            Dias_engorde: 45 // Valor por defecto
+        };
+        const lotsCollection = collection(db, `artifacts/${appId}/users/${userId}/lots`);
+        try {
+            await addDoc(lotsCollection, newLot);
+            showMessage('Lote Creado', `Se ha creado un nuevo lote con ID: ${newLotId}.`);
+        } catch (error) {
+            console.error("Error al añadir lote: ", error);
+            showMessage('Error', 'No se pudo crear el lote. Inténtalo de nuevo.');
+        }
+    }
+
+    async function addExpense(event) {
+        event.preventDefault();
+        const lotId = expenseLotSelector.value;
+        const detail = document.getElementById('expense-detail').value;
+        const amount = parseFloat(document.getElementById('expense-amount').value);
+
+        if (!lotId || !detail || isNaN(amount) || amount <= 0) {
+            showMessage('Error', 'Por favor, completa todos los campos correctamente.');
+            return;
+        }
+
+        const expense = {
+            ID_Lote: lotId,
+            Fecha: new Date(),
+            Detalle: detail,
+            Total: amount
+        };
+
+        const expensesCollection = collection(db, `artifacts/${appId}/users/${userId}/expenses`);
+        try {
+            await addDoc(expensesCollection, expense);
+            showMessage('Gasto Guardado', 'El gasto ha sido registrado exitosamente.');
+            document.getElementById('expense-form').reset();
+            document.getElementById('expense-modal').style.display = 'none';
+        } catch (error) {
+            console.error("Error al añadir gasto: ", error);
+            showMessage('Error', 'No se pudo guardar el gasto. Inténtalo de nuevo.');
+        }
+    }
+
+    async function addSale(event) {
+        event.preventDefault();
+        const lotId = saleLotSelector.value;
+        const client = document.getElementById('sale-client').value;
+        const amount = parseFloat(document.getElementById('sale-amount').value);
+
+        if (!lotId || !client || isNaN(amount) || amount <= 0) {
+            showMessage('Error', 'Por favor, completa todos los campos correctamente.');
+            return;
+        }
+
+        const sale = {
+            ID_Lote: lotId,
+            Fecha: new Date(),
+            Nombre_cliente: client,
+            Total: amount
+        };
+
+        const salesCollection = collection(db, `artifacts/${appId}/users/${userId}/sales`);
+        try {
+            await addDoc(salesCollection, sale);
+            showMessage('Venta Guardada', 'La venta ha sido registrada exitosamente.');
+            document.getElementById('sale-form').reset();
+            document.getElementById('sale-modal').style.display = 'none';
+        } catch (error) {
+            console.error("Error al añadir venta: ", error);
+            showMessage('Error', 'No se pudo guardar la venta. Inténtalo de nuevo.');
+        }
+    }
+
+    // Inicializar la aplicación
+    window.onload = async () => {
+        try {
+            if (initialAuthToken) {
+                await signInWithCustomToken(auth, initialAuthToken);
+            } else {
+                await signInAnonymously(auth);
+            }
+            userId = auth.currentUser.uid;
+            document.getElementById('user-id').textContent = userId;
+            startListeners();
+        } catch (error) {
+            console.error("Error al autenticar: ", error);
+            showMessage('Error de Autenticación', 'No se pudo iniciar sesión. Por favor, recarga la página.');
+        }
+    };
+
+    // Escuchadores de eventos para la UI
+    document.getElementById('add-expense-btn').addEventListener('click', () => {
+        document.getElementById('expense-modal').style.display = 'flex';
+    });
+    document.getElementById('add-sale-btn').addEventListener('click', () => {
+        document.getElementById('sale-modal').style.display = 'flex';
+    });
+    document.getElementById('expense-form').addEventListener('submit', addExpense);
+    document.getElementById('sale-form').addEventListener('submit', addSale);
+    
+    // Escuchar cambios en la selección de lotes
+    lotSelector.addEventListener('change', (e) => {
+        selectedLotId = e.target.value;
+        const lot = allLots.find(l => l.ID_Lote === selectedLotId);
+        renderLotInfo(lot);
+        renderSummary();
+        renderTables();
+    });
+
+    // Función para iniciar los listeners de Firestore
+    function startListeners() {
+        if (!userId) {
+            console.error("User ID is not defined.");
+            return;
+        }
+
+        // Listener para los lotes
+        const lotsRef = collection(db, `artifacts/${appId}/users/${userId}/lots`);
+        onSnapshot(lotsRef, (snapshot) => {
+            const newLots = [];
+            snapshot.forEach(doc => {
+                newLots.push(doc.data());
+            });
+            allLots = newLots;
+            
+            // Llenar los selectores de lotes
+            [lotSelector, expenseLotSelector, saleLotSelector].forEach(selector => {
+                selector.innerHTML = '<option value="">Selecciona un lote...</option>';
+                allLots.forEach(lot => {
+                    const option = document.createElement('option');
+                    option.value = lot.ID_Lote;
+                    option.textContent = lot.ID_Lote;
+                    selector.appendChild(option);
+                });
+            });
+
+            // Si no hay lotes, agregar uno de inicio
+            if (allLots.length === 0) {
+                addLot();
+            } else {
+                // Seleccionar el primer lote por defecto
+                selectedLotId = allLots[0].ID_Lote;
+                lotSelector.value = selectedLotId;
+                renderLotInfo(allLots[0]);
+                renderSummary();
+                renderTables();
+            }
+        });
+
+        // Listener para los gastos
+        const expensesRef = collection(db, `artifacts/${appId}/users/${userId}/expenses`);
+        onSnapshot(expensesRef, (snapshot) => {
+            const newExpenses = [];
+            snapshot.forEach(doc => {
+                newExpenses.push(doc.data());
+            });
+            allExpenses = newExpenses;
+            renderSummary();
+            renderTables();
+        });
+
+        // Listener para las ventas
+        const salesRef = collection(db, `artifacts/${appId}/users/${userId}/sales`);
+        onSnapshot(salesRef, (snapshot) => {
+            const newSales = [];
+            snapshot.forEach(doc => {
+                newSales.push(doc.data());
+            });
+            allSales = newSales;
+            renderSummary();
+            renderTables();
+        });
+    }
+</script>
+</body>
+</html>
