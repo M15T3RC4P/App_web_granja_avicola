@@ -1,3 +1,9 @@
+// ------------------
+// Lógica de la Granja Avícola App
+// Este archivo contiene todas las funciones y la lógica de la aplicación.
+// Se conecta a Firestore para la gestión de datos de ventas y clientes.
+// ------------------
+
 // Importaciones de Firebase SDK (versión 11.6.1)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -206,6 +212,9 @@ function setupVentasListeners() {
     document.getElementById('sale-precio').addEventListener('input', updateSaleTotal);
     document.getElementById('sale-cantidad-pollos').addEventListener('input', updateSaleTotal);
 
+    // Este es un EVENT LISTENER que escucha el envío del formulario.
+    // Cuando el usuario hace clic en el botón de "Registrar Venta",
+    // esta función se ejecuta y llama a handleNewSale.
     document.getElementById('sale-form').addEventListener('submit', handleNewSale);
 }
 
@@ -398,7 +407,11 @@ function populateSelects() {
 
 // --- Inicialización de la App ---
 window.navigate = navigate; // Hacer la función de navegación global
+// Este es el EVENT LISTENER principal que se activa cuando la página HTML ha terminado de cargarse.
+// Todo el código de inicialización y de asignación de eventos se ejecuta aquí.
 document.addEventListener('DOMContentLoaded', () => {
+    // Asignamos un EVENT LISTENER de CLIC a cada uno de los enlaces de navegación.
+    // Cuando se hace clic en un enlace, se ejecuta la función navigate().
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
