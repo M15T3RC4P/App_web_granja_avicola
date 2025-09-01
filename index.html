@@ -106,6 +106,7 @@
             <div class="text-sm md:flex-grow">
                 <a href="#resumen" class="nav-item active block mt-4 md:inline-block md:mt-0 mr-4">Resumen</a>
                 <a href="#ventas" class="nav-item block mt-4 md:inline-block md:mt-0 mr-4">Ventas</a>
+                <a href="#gastos" class="nav-item block mt-4 md:inline-block md:mt-0 mr-4">Gastos</a>
                 <a href="#clientes" class="nav-item block mt-4 md:inline-block md:mt-0">Clientes</a>
             </div>
             <div>
@@ -159,6 +160,7 @@
     let allLots = [];
     let allSales = [];
     let allClients = [];
+    let allExpenses = [];
     let activePage = '';
 
     // Referencias al DOM
@@ -195,15 +197,50 @@
 
     // --- Renderizado de Vistas ---
     function renderResumen() {
+        // Calcular totales de ventas y gastos
+        const totalSales = allSales.reduce((sum, sale) => sum + (sale.totalVenta || 0), 0);
+        const totalExpenses = allExpenses.reduce((sum, expense) => sum + (expense.total || 0), 0);
+        const netProfit = totalSales - totalExpenses;
+
         contentDiv.innerHTML = `
-            <div class="card p-6 text-center">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Resumen General</h2>
-                <p class="text-gray-600">Este será tu panel de control principal. Aquí verás los datos financieros más importantes de un vistazo.</p>
-                <div class="mt-8 text-gray-400">
-                    <i class="fas fa-chart-line fa-5x"></i>
+            <div class="p-4">
+                <h1 class="text-3xl font-bold text-gray-800 mb-6">Bienvenido a la Granja Avícola</h1>
+                
+                <!-- Sección de resúmenes -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="card p-6 text-center">
+                        <div class="text-gray-400 mb-2">
+                            <i class="fas fa-money-bill-wave fa-3x"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-700">Total Ventas</h3>
+                        <p class="text-3xl font-bold text-green-600 mt-2">${formatCurrency(totalSales)}</p>
+                    </div>
+                    <div class="card p-6 text-center">
+                        <div class="text-gray-400 mb-2">
+                            <i class="fas fa-money-check-alt fa-3x"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-700">Total Gastos</h3>
+                        <p class="text-3xl font-bold text-red-600 mt-2">${formatCurrency(totalExpenses)}</p>
+                    </div>
+                    <div class="card p-6 text-center">
+                        <div class="text-gray-400 mb-2">
+                            <i class="fas fa-balance-scale fa-3x"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-700">Ganancia Neta</h3>
+                        <p class="text-3xl font-bold text-blue-600 mt-2">${formatCurrency(netProfit)}</p>
+                    </div>
+                </div>
+
+                <!-- Sección de lotes activos -->
+                <div class="card p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Lotes Activos</h2>
+                    <div id="active-lots-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <!-- Lotes se insertarán aquí dinámicamente -->
+                    </div>
                 </div>
             </div>
         `;
+        updateLotsContainer();
     }
 
     function renderVentas() {
@@ -292,6 +329,31 @@
         populateSelects();
     }
 
+    function renderGastos() {
+        contentDiv.innerHTML = `
+            <div class="card p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Registro de Gastos</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lote</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoría</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detalle</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cantidad</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenses-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Gastos se insertarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        updateExpensesTable();
+    }
+
     function renderClientes() {
         contentDiv.innerHTML = `
             <div class="card p-6">
@@ -316,7 +378,7 @@
         `;
         updateClientsTable();
     }
-
+    
     // Función para configurar los listeners de la página de ventas
     function setupVentasListeners() {
         const clientRadios = document.querySelectorAll('input[name="client-type"]');
@@ -357,6 +419,28 @@
         document.getElementById('total-venta-display').textContent = formatCurrency(total);
     }
 
+    function updateLotsContainer() {
+        const lotsContainer = document.getElementById('active-lots-container');
+        lotsContainer.innerHTML = ''; // Limpiar el contenedor
+
+        if (allLots.length === 0) {
+            lotsContainer.innerHTML = `<p class="text-center text-gray-500 py-4 col-span-full">No hay lotes activos. Agrega un lote en la consola de Firebase para empezar.</p>`;
+        } else {
+            allLots.forEach(lot => {
+                const card = `
+                    <div class="card p-4 flex flex-col items-center text-center">
+                        <i class="fas fa-hatching-chick fa-3x text-yellow-500 mb-2"></i>
+                        <h4 class="text-lg font-bold text-gray-700">${lot.ID_lote || 'ID Lote'}</h4>
+                        <p class="text-sm text-gray-500">Cantidad inicial: ${lot.Cantidad_inicial || 0} aves</p>
+                        <p class="text-sm text-gray-500">Días de engorde: ${lot.Dias_engorde || 0} días</p>
+                        <p class="text-sm text-gray-500">Estado: ${lot.Estado || 'N/A'}</p>
+                    </div>
+                `;
+                lotsContainer.innerHTML += card;
+            });
+        }
+    }
+
     function updateClientsTable() {
         const tableBody = document.getElementById('clients-table-body');
         tableBody.innerHTML = '';
@@ -371,6 +455,27 @@
                         <td class="px-6 py-4 whitespace-nowrap">${client.telefono || 'N/A'}</td>
                         <td class="px-6 py-4 whitespace-nowrap font-bold">${formatCurrency(client.total_compras || 0)}</td>
                         <td class="px-6 py-4 whitespace-nowrap">${formatDate(client.ultima_compra) || 'N/A'}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+        }
+    }
+    
+    function updateExpensesTable() {
+        const tableBody = document.getElementById('expenses-table-body');
+        tableBody.innerHTML = '';
+        if (allExpenses.length === 0) {
+            tableBody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">No hay gastos registrados.</td></tr>`;
+        } else {
+            allExpenses.forEach(expense => {
+                const row = `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">${expense.ID_lote || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${expense.categoria || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${expense.detalle || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${expense.cantidad || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap font-bold">${formatCurrency(expense.total || 0)}</td>
                     </tr>
                 `;
                 tableBody.innerHTML += row;
@@ -471,6 +576,9 @@
             case '#ventas':
                 renderVentas();
                 break;
+            case '#gastos':
+                renderGastos();
+                break;
             case '#clientes':
                 renderClientes();
                 break;
@@ -503,9 +611,31 @@
         onSnapshot(lotesQuery, (snapshot) => {
             allLots = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             if(activePage === '#ventas') populateSelects();
+            if(activePage === '#resumen') updateLotsContainer();
         }, (error) => {
             console.error("Error with lotes listener: ", error);
             showMessage('Error de conexión', 'No se pudo sincronizar los datos de lotes.');
+        });
+
+        // Listener para la colección de ventas
+        const salesQuery = query(collection(db, `artifacts/${appId}/users/${userId}/ventas`));
+        onSnapshot(salesQuery, (snapshot) => {
+            allSales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if(activePage === '#resumen') renderResumen();
+        }, (error) => {
+            console.error("Error with sales listener: ", error);
+            showMessage('Error de conexión', 'No se pudo sincronizar los datos de ventas.');
+        });
+        
+        // Listener para la colección de gastos
+        const expensesQuery = query(collection(db, `artifacts/${appId}/users/${userId}/gastos`));
+        onSnapshot(expensesQuery, (snapshot) => {
+            allExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            if(activePage === '#resumen') renderResumen();
+            if(activePage === '#gastos') updateExpensesTable();
+        }, (error) => {
+            console.error("Error with expenses listener: ", error);
+            showMessage('Error de conexión', 'No se pudo sincronizar los datos de gastos.');
         });
     }
 
